@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.DS_Store
+
+# recordings and the outputs of runs stay local
+data/*
+!data/README.md
+results/*
+!results/README.md
+map.png
