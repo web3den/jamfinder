@@ -1,41 +1,41 @@
 # jamfinder
 
-Find where a VHF radio transmitter is, with one cheap receiver that stands still.
-The receiver listens for the faint echoes of the transmitter's signal off passing aircraft.
+Locate a VHF radio transmitter with one receiver, from the echoes of its signal off passing aircraft.
 
-**Status: a research prototype, closed on 17 November 2026. It is not a product.**
-It was never tested on a real interference source, and never on a receiver we owned.
-Everything was measured on known, licensed transmitters heard through volunteers' public
-receivers, or in simulation. Nobody maintains it. Questions and fixes may go unanswered.
+**Status:** experimental research code. It has been tried only on known, licensed transmitters,
+not on real interference. It is not maintained, so issues and pull requests may go unanswered.
 
-The name is a working name. Nothing in this repository has located a jammer.
+## How it works
 
-## The idea
+A transmitter's signal reaches the receiver directly, and also as faint echoes off aircraft. Each
+echo is shifted in frequency by the aircraft's motion (the Doppler effect). Aircraft broadcast
+their position and velocity over ADS-B, and public networks share these reports.
 
-A transmitter's signal reaches the receiver directly, and also as weak echoes off aircraft.
-Each echo arrives a few hertz off the main signal, because the aircraft is moving (Doppler shift).
-Public ADS-B data says where every aircraft is and how fast it flies.
+For each point on a map, jamfinder predicts the echoes a transmitter there would produce and
+compares them with the recording. The point that fits best is the answer. If no point fits
+clearly better than control searches that cannot be right, it reports nothing.
 
-So for any place on the map, the software can predict the echo pattern a transmitter standing
-there would produce, and compare that with the recording. The place that fits best is the answer.
-If no place fits clearly better than a set of deliberately wrong tests, the software says "nothing".
+It needs one receiver in a fixed place. No antenna array, no second site, no precise clock.
 
-One receiver. No antenna array, no second site, no precise clock. The receiver only listens.
-At Helsinki, the best site, the receiver was of the 30 to 40 dollar class. The other sites used
-costlier models.
+More in [docs/how_it_works.md](docs/how_it_works.md).
 
-A plain-language explanation is in [docs/how_it_works.md](docs/how_it_works.md).
+## Install
 
-## Try it in two minutes
+Requires Python 3.12. The shell scripts need zsh. Developed on macOS.
 
-No radio and no network are needed. The demo makes a synthetic scene, hides a transmitter in it,
-and lets the real search code find it.
-
+    git clone https://github.com/web3den/jamfinder.git
+    cd jamfinder
     python3.12 -m venv .venv
     .venv/bin/pip install -r requirements.txt
+
+## Quick start
+
+The demo needs no radio and no network. It builds a synthetic scene, hides a transmitter in it,
+and runs the real search:
+
     .venv/bin/python examples/demo_synthetic.py --plot map.png
 
-Expected output:
+Expected output. The time at the end varies.
 
     scene: 6 aircraft, 10 minutes, transmitter of 10 W planted 5.0 km from the receiver
 
@@ -48,115 +48,85 @@ Expected output:
     2. control: the same scene without echoes
       verdict: nothing   (score 5.4; the software answers only above 15.0)
 
-![The demo's search map](docs/img/demo_synthetic_map.png)
+    map written to map.png
 
-The demo shows that the chain works and what the output looks like. It does not show how weak a
-real transmitter can be. The simulator is trusted to about 5 dB, and real sites are harder.
+    done in 9 s
 
-Run the tests with `.venv/bin/python -m pytest -q`.
+![Search map from the demo](docs/img/demo_synthetic_map.png)
+
+| Option | Meaning |
+|---|---|
+| `--tx E N` | Place the transmitter E metres east and N metres north of the receiver |
+| `--power-db X` | Make the transmitter X dB stronger, or weaker if X is negative |
+| `--seed N` | Use a different noise draw |
+| `--plot FILE` | Save the search map as a picture |
 
 ## Use it on a real signal
 
-[docs/try_it_yourself.md](docs/try_it_yourself.md) goes through it step by step: pick a target,
-record the signal through a network receiver, record the aircraft positions, run the analysis
-and read the answer.
+1. Pick a steady AM carrier with busy air traffic nearby, such as an airport weather broadcast (ATIS).
+2. Record aircraft positions with `tools/record_adsb.py`.
+3. At the same time, record the signal for one to three hours with `tools/spy_record.py`.
+4. Run `tools/run_after.sh`. It prints the verdict: a position, or "nothing".
 
-## What is in this repository
+The step-by-step guide is [docs/usage.md](docs/usage.md).
 
-| Path | What it is |
-|---|---|
-| `jf/` | The method: signal handling, aircraft tracks, the map search, the reporting rules |
-| `sim/` | The simulator that plants a made-up transmitter among aircraft tracks |
-| `examples/` | The two-minute demo |
-| `tools/` | Recording, repair and screening scripts, and the script that runs the whole analysis |
-| `analysis/` | The steps of the analysis, the pictures, and simulations on real aircraft tracks |
-| `tests/` | Tests on simulated data |
-| `data/`, `results/` | Empty. Your recordings and the outputs of your runs go here. Each has a README. |
-| `docs/` | How it works, how to use it, and one line per script |
+## Limitations
 
-A one-line description of every script is in [docs/script_index.md](docs/script_index.md).
-
-This is the software and its instructions. The recordings, the result files and the notes of
-the experiments behind it are not included.
-
-## What to expect
-
-The demo is an easy scene. This is what four days of tests on real signals gave. The records
-behind these numbers are not in this repository, so they cannot be checked from it.
-
-These are the runs in fair conditions. Fair means: an upright AM transmitter such as an airport
-weather broadcast, heard at 45 dB-Hz or more, with at least 15 aircraft an hour nearby.
-
-| Site | Runs | Outcome |
-|---|---|---|
-| Helsinki, receiver 6 km away | 5 | Best spot 11 to 45 m from the reference mast in all five |
-| Ottawa, receiver 6 km away | 2 | Best spot 56 m and 36 m from the regulator's listed site |
-| Genoa, receiver 10 km away | 1 | Missed. After a software repair the same recording gave 362 m, which does not count as a pass. |
-| Manchester, receiver 14 km away | 1 | Missed |
-
-The best spot was within 1 km of the reference in 7 of 9 runs. The software itself said "one
-transmitter, here" in 5 of those 7 and withheld the other 2.
-
-Nine more runs were outside fair conditions: weak signals, few aircraft, a short recording,
-navigation beacons, one FM station. The software said "nothing" in all nine. One of them is
-arguable. The short recording, at Sydney, meets the letter of the fair definition. Counted as
-fair it makes 10 runs, 7 found and 3 missed.
-
-Read these numbers with four cautions.
-
-- **The reporting rule is the weak part.** It was rewritten several times on these same
-  recordings. Earlier versions gave wrong answers: one at a small airport, 1.4 km from the listed
-  site, and several in stress tests. The last version gave no wrong answer on the seven
-  recordings made after it was frozen, and it also withheld two right ones.
-- **Helsinki's reference is inferred.** It is a mast on OpenStreetMap that we took to be the
-  transmitter. The receiver's position was also corrected by a few hundred metres using the
-  echoes.
-- **Few runs were blind.** Of the nine runs in the table, only the first at Ottawa was analysed
-  blind, and it was reported only under a rule written after it. Everywhere else the reference
-  position was known when the answer came out.
-- **These are cooperative transmitters.** Always on, licensed, at known airports. Their power
-  was never confirmed. A real interference source may be none of those things.
-
-## What it cannot do
-
-- It needs aircraft: about 15 an hour within 30 km. Busy airports in daytime, not remote places.
-- It needs a steady, narrow carrier that stays on or keeps coming back. The shortest real find
-  used 25 minutes of signal, on the recording the method was built on. The shortest under a
-  rule frozen in advance used 45 minutes. Single short bursts are out of reach.
-- It needs a loud signal at the receiver, about 45 dB-Hz. At both sites where it worked, the
-  transmitter was about 6 km from the receiver. At 10 and 14 km it missed. Scaled from one
-  site's loudness, that is roughly tens of watts within 10 to 15 km, or 1 W within 4 km. That
-  scaling was never measured.
-- FM is unproven. Wideband signals, noise-like sources and GPS jammers do not fit the method.
+- It needs air traffic: about 15 or more aircraft an hour within 30 km.
+- It needs a steady, narrow carrier that stays on for tens of minutes. Short bursts, wideband and
+  noise-like signals, including GPS jammers, are out of reach. It has not been shown to work on FM.
+- It needs a strong signal at the receiver, about 45 dB-Hz. That usually means a receiver within
+  a few kilometres of the transmitter.
+- It needs the receiver's position to about 10 m.
 - It cannot locate a transmitter that is itself on an aircraft.
-- Two wrong spots were never explained, at Brainerd and at Sydney. The final rule withheld both.
-  An earlier rule reported the one at Brainerd.
+- The rule that decides when to report a position was tuned on few recordings. Treat a reported
+  position as a lead to check, not as proof.
 
-## Credits
+## Project layout
+
+| Path | Contents |
+|---|---|
+| `jf/` | The method: signal processing, aircraft tracks, map search, reporting rule |
+| `sim/` | A simulator of a transmitter among aircraft |
+| `examples/` | The demo |
+| `tools/` | Recorders, checks and the analysis runner |
+| `analysis/` | Analysis steps and plots |
+| `tests/` | Tests, on simulated data |
+| `data/`, `results/` | Your recordings and outputs. Empty in the repository. |
+| `docs/` | Documentation |
+
+## Tests
+
+    .venv/bin/python -m pytest -q
+
+## Related work
+
+Locating a transmitter from aircraft echoes has been described before, mostly with antenna arrays:
+
+- S. Luan et al., "Interference locating algorithm based on scattered plane signals",
+  *Systems Engineering and Electronics* 36(12), 2014.
+  [Link](https://www.sys-ele.com/EN/Y2014/V36/I12/2356)
+- State Radio Monitoring Center of China, "Radio interference source location method and
+  system", patent application CN105717486A, 2016.
+  [Link](https://patents.google.com/patent/CN105717486A/en)
+- M. Krueckemeier et al., "Passive Radar Transmitter Localization Using a Planar Approximation",
+  *IEEE Transactions on Aerospace and Electronic Systems* 57(5), 2021.
+  [Link](https://doi.org/10.1109/TAES.2021.3074133)
+
+## Acknowledgements
 
 - Aircraft positions: [adsb.fi](https://adsb.fi), [adsb.lol](https://adsb.lol) and the
-  [OpenSky Network](https://opensky-network.org), and for two recordings
-  [airplanes.live](https://airplanes.live). All are built by volunteers who share their receivers.
-- The volunteers who run public software-radio receivers. Every real recording came through one.
-  Their receivers were not always used within the limits their owners set. See "Be a polite
-  guest" in [docs/try_it_yourself.md](docs/try_it_yourself.md).
-- OpenStreetMap contributors, for the Helsinki mast.
-- [OurAirports](https://ourairports.com), for airport frequencies and beacon positions.
-- The Ottawa reference is from the Canadian regulator's transmitter list. Contains information
-  licensed under the
-  [Open Government Licence – Canada](https://open.canada.ca/en/open-government-licence-canada).
-- The Sydney reference is from the Australian regulator's register. Based on Australian
-  Communications and Media Authority information.
-- The authors of the earlier work named at the end of
-  [docs/how_it_works.md](docs/how_it_works.md).
+  [OpenSky Network](https://opensky-network.org), built on receivers shared by volunteers.
+- Airport and beacon frequencies: [OurAirports](https://ourairports.com).
+- The volunteers who share software-defined radio receivers online. Please be a good guest, see
+  [docs/usage.md](docs/usage.md#be-a-good-guest).
 
-## Not for safety use
+## Disclaimer
 
-This is research code. An AI coding agent (Anthropic's Claude) wrote it and this documentation,
-and neither has had an independent review. Do not use it for anything that people's safety
-depends on. Only receive. Follow your country's rules on listening to radio signals.
+Experimental research code, written with an AI coding assistant and not independently reviewed.
+Do not rely on it where safety is at stake. It only receives. Follow your local rules on
+listening to radio signals.
 
-## Licence
+## License
 
-GNU Affero General Public License, version 3 or later. See [LICENSE](LICENSE).
-Copyright (C) 2026 the jamfinder authors.
+[AGPL-3.0-or-later](LICENSE). Copyright (C) 2026 the jamfinder authors.
