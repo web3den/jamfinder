@@ -1,0 +1,59 @@
+{
+ "tag": "bugfix",
+ "role": "generator",
+ "model": "gpt-5.4-mini",
+ "effort": "low",
+ "sample": 0,
+ "system": "You are a software engineer fixing one bug in jamfinder, a Python package that locates radio\ntransmitters from the echoes of their signal off aircraft. You work in steps. An automated harness checks the\noutput of every step; your own statements of success count for nothing. Fix the library code; never change\nexisting tests to make them pass.",
+ "user": "Ticket: heights drift by tens of metres in a round trip\n\nConverting a point to local coordinates and back (Frame.to_enu, then Frame.to_geo) changes its height by up to about 60 m for aircraft 100 km from the frame origin at cruise altitude. Latitude and longitude come back fine. The round trip should be exact to a millimetre.\n\n=== jf/geo.py ===\n\"\"\"WGS84 helpers: geodetic <-> ECEF <-> local east/north/up.\"\"\"\nimport numpy as np\n\nA = 6378137.0\nF = 1 / 298.257223563\nE2 = F * (2 - F)\nFT = 0.3048\nKT = 0.514444\n\n\ndef ecef(lat, lon, h):\n    lat, lon = np.radians(lat), np.radians(lon)\n    n = A / np.sqrt(1 - E2 * np.sin(lat) ** 2)\n    x = (n + h) * np.cos(lat) * np.cos(lon)\n    y = (n + h) * np.cos(lat) * np.sin(lon)\n    z = (n * (1 - E2) + h) * np.sin(lat)\n    return np.stack([x, y, z], axis=-1)\n\n\ndef enu_matrix(lat0, lon0):\n    la, lo = np.radians(lat0), np.radians(lon0)\n    return np.array([\n        [-np.sin(lo), np.cos(lo), 0.0],\n        [-np.sin(la) * np.cos(lo), -np.sin(la) * np.sin(lo), np.cos(la)],\n        [np.cos(la) * np.cos(lo), np.cos(la) * np.sin(lo), np.sin(la)],\n    ])\n\n\nclass Frame:\n    \"\"\"Local east/north/up frame at a reference point (metres).\"\"\"\n\n    def __init__(self, lat0, lon0, h0=0.0):\n        self.lat0, self.lon0, self.h0 = lat0, lon0, h0\n        self.o = ecef(lat0, lon0, h0)\n        self.r = enu_matrix(lat0, lon0)\n\n    def to_enu(self, lat, lon, h):\n        return (ecef(np.asarray(lat, float), np.asarray(lon, float), np.asarray(h, float)) - self.o) @ self.r.T\n\n    def to_geo(self, enu):\n        \"\"\"Inverse (iterative), returns lat, lon, h.\"\"\"\n        p = np.asarray(enu, float) @ self.r + self.o\n        x, y, z = p[..., 0], p[..., 1], p[..., 2]\n        lon = np.arctan2(y, x)\n        rho = np.hypot(x, y)\n        lat = np.arctan2(z, rho * (1 - E2))\n        for _ in range(1):\n            n = A / np.sqrt(1 - E2 * np.sin(lat) ** 2)\n            h = rho / np.cos(lat) - n\n            lat = np.arctan2(z, rho * (1 - E2 * n / (n + h)))\n        return np.degrees(lat), np.degrees(lon), h\n\n\n=== tests/test_geometry.py ===\n\"\"\"The geometry the whole method rests on, checked against finite differences.\"\"\"\nimport numpy as np\n\nfrom tests.common import LAM\nfrom jf import tracks\nfrom sim import synth\n\n\ndef test_doppler_equals_minus_range_rate_over_lambda():\n    \"\"\"f_k = -(1/lambda) d/dt (R1 + R2): the bistatic Doppler of the self-referenced echo.\"\"\"\n    line = synth.Line(0.0, 100.0, (-5000.0, 2000.0, 1500.0), (90.0, 40.0, 0.0))\n    tx = np.array([1200.0, -800.0, 85.0])\n    rx = np.array([0.0, 0.0, 45.0])\n    t = np.linspace(5.0, 95.0, 50)\n    fd = tracks.doppler_pv(line.pos(t), line.vel(t), tx, rx, LAM)\n\n    def rsum(tt):\n        p = line.pos(tt)\n        return np.linalg.norm(p - tx, axis=1) + np.linalg.norm(p - rx, axis=1)\n\n    h = 1e-3\n    fd_num = -(rsum(t + h) - rsum(t - h)) / (2 * h) / LAM\n    assert np.max(np.abs(fd - fd_num)) < 1e-6 * np.max(np.abs(fd)) + 1e-7\n\n\ndef test_doppler_gradient_formula():\n    \"\"\"grad_x f = (v - (v.u1) u1) / (lambda R1), u1 from the transmitter to the aircraft.\"\"\"\n    rng = np.random.default_rng(0)\n    rx = np.array([0.0, 0.0, 45.0])\n    for _ in range(25):\n        p = rng.uniform(-5000.0, 5000.0, 3)\n        p[2] = rng.uniform(500.0, 3000.0)\n        v = rng.uniform(-120.0, 120.0, 3)\n        v[2] = rng.uniform(-5.0, 5.0)\n        tx = rng.uniform(-5000.0, 5000.0, 3)\n        tx[2] = 85.0\n\n        def f0(x):\n            return tracks.doppler_pv(p[None], v[None], x, rx, LAM)[0]\n\n        g_num = np.array([(f0(tx + d) - f0(tx - d)) / 2e-3 for d in np.eye(3) * 1e-3])\n        u1 = (p - tx) / np.linalg.norm(p - tx)\n        g = (v - (v @ u1) * u1) / (LAM * np.linalg.norm(p - tx))\n        assert np.allclose(g_num, g, rtol=1e-5, atol=1e-9)\n\n\ndef test_mirror_twin_gives_identical_doppler():\n    \"\"\"A transmitter and its mirror image across the vertical plane through a straight track are indistinguishable\n    from that one track. Different flight lines are what break the tie.\"\"\"\n    line = synth.Line(0.0, 600.0, (-20000.0, 3000.0, 2000.0), (100.0, 0.0, 0.0))   # flies east along N = 3000\n    rx = np.array([700.0, -400.0, 45.0])\n    tx = np.array([4000.0, 3000.0 + 2500.0, 85.0])\n    twin = np.array([4000.0, 3000.0 - 2500.0, 85.0])\n    t = np.linspace(0.0, 600.0, 300)\n    f1 = tracks.doppler_pv(line.pos(t), line.vel(t), tx, rx, LAM)\n    f2 = tracks.doppler_pv(line.pos(t), line.vel(t), twin, rx, LAM)\n    assert np.max(np.abs(f1 - f2)) < 1e-9\n    # and a second line with another heading tells them apart by tens of Hz\n    other = synth.Line(0.0, 600.0, (2000.0, -20000.0, 2000.0), (0.0, 100.0, 0.0))\n    g1 = tracks.doppler_pv(other.pos(t), other.vel(t), tx, rx, LAM)\n    g2 = tracks.doppler_pv(other.pos(t), other.vel(t), twin, rx, LAM)\n    assert np.max(np.abs(g1 - g2)) > 10.0\n\n\nThis test reproduces the bug:\nimport numpy as np\n\nfrom jf.geo import Frame\n\n\ndef test_round_trip_height_preserved_for_distant_aircraft():\n    # A point about 100 km from the frame origin at cruise altitude.\n    frame = Frame(52.0, 0.0, 0.0)\n    lat, lon, h = 52.75, 1.0, 11000.0\n\n    enu = frame.to_enu(lat, lon, h)\n    lat2, lon2, h2 = frame.to_geo(enu)\n\n    # Latitude/longitude already come back fine; the bug is the height drift.\n    assert np.allclose([lat2, lon2], [lat, lon], atol=1e-10)\n    assert abs(h2 - h) < 1e-3\n\n\nIts failure:\nF                                                                        [100%]\n=================================== FAILURES ===================================\n____________ test_round_trip_height_preserved_for_distant_aircraft _____________\ntests/test_repro.py:16: in test_round_trip_height_preserved_for_distant_aircraft\n    assert abs(h2 - h) < 1e-3\nE   assert np.float64(46.85761728975922) < 0.001\nE    +  where np.float64(46.85761728975922) = abs((np.float64(11046.85761728976) - 11000.0))\n=========================== short test summary info ============================\nFAILED tests/test_repro.py::test_round_trip_height_preserved_for_distant_aircraft\n1 failed\n\n\nFind the root cause and fix it with exact text replacements: each `old` must appear exactly once in its file.",
+ "schema": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "root_cause",
+   "edits"
+  ],
+  "properties": {
+   "root_cause": {
+    "type": "string"
+   },
+   "edits": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "file",
+      "old",
+      "new"
+     ],
+     "properties": {
+      "file": {
+       "type": "string"
+      },
+      "old": {
+       "type": "string"
+      },
+      "new": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  }
+ },
+ "output": {
+  "root_cause": "`Frame.to_geo()` uses a one-step ECEF\u2192geodetic inverse with an approximate latitude update and then computes height from that still-imprecise latitude. For points far from the frame origin, one iteration is not enough, so the recovered latitude is close but the derived height is off by tens of metres.",
+  "edits": [
+   {
+    "file": "jf/geo.py",
+    "old": "    def to_geo(self, enu):\n        \"\"\"Inverse (iterative), returns lat, lon, h.\"\"\"\n        p = np.asarray(enu, float) @ self.r + self.o\n        x, y, z = p[..., 0], p[..., 1], p[..., 2]\n        lon = np.arctan2(y, x)\n        rho = np.hypot(x, y)\n        lat = np.arctan2(z, rho * (1 - E2))\n        for _ in range(1):\n            n = A / np.sqrt(1 - E2 * np.sin(lat) ** 2)\n            h = rho / np.cos(lat) - n\n            lat = np.arctan2(z, rho * (1 - E2 * n / (n + h)))\n        return np.degrees(lat), np.degrees(lon), h\n",
+    "new": "    def to_geo(self, enu):\n        \"\"\"Inverse (iterative), returns lat, lon, h.\"\"\"\n        p = np.asarray(enu, float) @ self.r + self.o\n        x, y, z = p[..., 0], p[..., 1], p[..., 2]\n        lon = np.arctan2(y, x)\n        rho = np.hypot(x, y)\n        lat = np.arctan2(z, rho * (1 - E2))\n        for _ in range(10):\n            sin_lat = np.sin(lat)\n            n = A / np.sqrt(1 - E2 * sin_lat ** 2)\n            h = rho / np.cos(lat) - n\n            lat_next = np.arctan2(z, rho * (1 - E2 * n / (n + h)))\n            if np.allclose(lat_next, lat, rtol=0.0, atol=1e-14):\n                lat = lat_next\n                break\n            lat = lat_next\n        sin_lat = np.sin(lat)\n        n = A / np.sqrt(1 - E2 * sin_lat ** 2)\n        h = rho / np.cos(lat) - n\n        return np.degrees(lat), np.degrees(lon), h\n"
+   }
+  ]
+ },
+ "tokens_in": 2252,
+ "tokens_out": 704,
+ "usd": 0.004857,
+ "seconds": 6.3
+}

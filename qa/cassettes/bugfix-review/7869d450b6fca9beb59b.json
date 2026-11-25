@@ -1,0 +1,56 @@
+{
+ "tag": "bugfix-review",
+ "role": "evaluator",
+ "model": "gpt-4.1-mini",
+ "effort": "low",
+ "sample": 1,
+ "system": "You are a skeptical code reviewer. Another engineer (an AI agent) claims to have fixed a bug. Your\ntask is to find evidence that the change is wrong, incomplete, hides the symptom instead of fixing the cause, or\ngames the tests. You cannot run code. Approve only if you find no such evidence.",
+ "user": "Ticket: 20-second position feeds give empty tracks even with max_gap=30\n\nTracks built from a position feed with one report every 20 seconds come back almost entirely invalid (Path.valid is False nearly everywhere), even when I pass max_gap=30 to tracks.load_paths. Feeds with a report every 2 seconds are fine. Expected: with max_gap=30 a 20-second feed gives a fully valid track; with max_gap below 20 it should not.\n\nThe change:\n--- a/jf/tracks.py\n+++ b/jf/tracks.py\n@@ -162,7 +162,7 @@\n         t = np.asarray(t, float)\n         i = np.clip(np.searchsorted(self.tp, t), 1, len(self.tp) - 1)\n         gap = self.tp[i] - self.tp[i - 1]\n-        return (t >= self.t0) & (t <= self.t1) & (gap <= 12.0)\n+        return (t >= self.t0) & (t <= self.t1) & (gap <= self.max_gap)\n \n     def pos(self, t):\n         return self.sp(np.clip(np.asarray(t, float), self.t0, self.t1))\n\n\nThe regression test the engineer added:\nimport gzip\nimport json\n\nimport numpy as np\n\nfrom jf import geo, tracks\n\n\nLAT0, LON0 = 46.0, -94.0\nSPEED, ALT, DUR = 230.0, 10000.0, 400.0\n\n\ndef _write_feed(path, cadence_s):\n    frame = geo.Frame(LAT0, LON0, 0.0)\n    t0 = 1.7e9\n    with gzip.open(path, \"wt\") as f:\n        for k in range(int(DUR / cadence_s) + 1):\n            t = t0 + k * cadence_s\n            e = -SPEED * DUR / 2 + SPEED * k * cadence_s\n            lat, lon, _ = frame.to_geo(np.array([e, 0.0, ALT]))\n            ac = dict(\n                hex=\"abc123\",\n                type=\"adsb_icao\",\n                flight=\"TEST1\",\n                t=\"B738\",\n                category=\"A3\",\n                alt_baro=32000,\n                alt_geom=int(round(ALT / geo.FT)),\n                gs=SPEED / geo.KT,\n                track=90.0,\n                geom_rate=0,\n                baro_rate=0,\n                lat=float(lat),\n                lon=float(lon),\n                nic=8,\n                rc=186,\n                seen_pos=0.1,\n                seen=0.1,\n            )\n            f.write(json.dumps(dict(t0=t, t1=t + 0.2, now=int(t * 1000), ac=[ac])) + \"\\n\")\n    return frame\n\n\ndef _valid_fraction(path_obj):\n    tc = np.arange(path_obj.t0, path_obj.t1, 1.0)\n    return float(path_obj.valid(tc).mean())\n\n\ndef test_valid_uses_max_gap_for_sparse_position_feeds(tmp_path):\n    fn = str(tmp_path / \"feed20.jsonl.gz\")\n    frame = _write_feed(fn, 20.0)\n\n    paths_default, _ = tracks.load_paths(fn, frame, ground_h=0.0)\n    paths_loose, _ = tracks.load_paths(fn, frame, ground_h=0.0, max_gap=30.0)\n\n    assert _valid_fraction(paths_default[\"abc123\"]) < 0.05\n    assert _valid_fraction(paths_loose[\"abc123\"]) > 0.95\n\n\nAutomated checks: new test passes; existing suite passes.",
+ "schema": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "verdict",
+   "risk",
+   "concerns"
+  ],
+  "properties": {
+   "verdict": {
+    "type": "string",
+    "enum": [
+     "approve",
+     "request_changes"
+    ]
+   },
+   "risk": {
+    "type": "string",
+    "enum": [
+     "low",
+     "medium",
+     "high"
+    ]
+   },
+   "concerns": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   }
+  }
+ },
+ "output": {
+  "verdict": "request_changes",
+  "risk": "medium",
+  "concerns": [
+   "The fix changes the hardcoded gap limit from 12.0 to self.max_gap, which is correct in principle. However, there is no evidence that self.max_gap is always defined on this object; if not set prior to calling valid(), it could raise an exception or revert to some default not shown here.",
+   "The test only verifies valid fraction metrics but does not verify that the tracks are logically consistent or that track.valid is set correctly for all segments; it only tests one flight with a specific cadence and max_gap setting.",
+   "There is an assumption that max_gap is the correct parameter to substitute, but the code snippet does not show how max_gap relates to self.max_gap internally; thus this change may be hiding the symptom if the max_gap setting passed to load_paths does not properly propagate to the object's max_gap attribute.",
+   "The patch modifies just one line without confirming that this is the sole place in the code enforcing the gap limit; other parts might still use the hardcoded 12.0, causing inconsistent behavior.",
+   "No test covers the behavior when max_gap is set below 20, as described in the ticket, so the fix is only partially tested."
+  ]
+ },
+ "tokens_in": 911,
+ "tokens_out": 248,
+ "usd": 0.000761,
+ "seconds": 4.4
+}

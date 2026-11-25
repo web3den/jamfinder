@@ -1,0 +1,28 @@
+{
+ "tag": "oracle",
+ "role": "generator",
+ "model": "gpt-5.4-mini",
+ "effort": "low",
+ "sample": 2,
+ "system": "You are a senior test engineer. You write pytest test modules. Reply with the module source only.",
+ "user": "Requirement: Return the Doppler shift in Hz of the echo that a transmitter at `tx` produces off an aircraft at position `p` moving with velocity `v`, as heard by a receiver at `rx`. Positions in metres in one local frame, velocity in m/s, wavelength `lam` in metres.\n\nSignature: bistatic_doppler(p, v, tx, rx, lam) -> float\n\nThe implementation is not available to you. Write a pytest test module, 5 to 8 tests, with expected values you derive yourself from the physics. Import it with: from subject_under_test import bistatic_doppler",
+ "schema": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "test_code"
+  ],
+  "properties": {
+   "test_code": {
+    "type": "string"
+   }
+  }
+ },
+ "output": {
+  "test_code": "import math\n\nimport pytest\n\nfrom subject_under_test import bistatic_doppler\n\n\n\ndef test_zero_velocity_gives_zero_shift():\n    p = (1000.0, 2000.0, -500.0)\n    v = (0.0, 0.0, 0.0)\n    tx = (0.0, 0.0, 0.0)\n    rx = (10.0, -20.0, 30.0)\n    lam = 0.3\n    assert bistatic_doppler(p, v, tx, rx, lam) == pytest.approx(0.0)\n\n\n\ndef test_velocity_perpendicular_to_both_lines_of_sight_gives_zero_shift():\n    # Target sits on the x-axis, transmitter and receiver are also on the x-axis.\n    # Motion purely along y is orthogonal to both range vectors, so the Doppler shift is zero.\n    p = (0.0, 0.0, 0.0)\n    v = (0.0, 7.5, 0.0)\n    tx = (-100.0, 0.0, 0.0)\n    rx = (250.0, 0.0, 0.0)\n    lam = 0.5\n    assert bistatic_doppler(p, v, tx, rx, lam) == pytest.approx(0.0)\n\n\n\ndef test_monostatic_case_approaching_transmitter_positive_shift():\n    # Monostatic limit: tx and rx at the origin.\n    # p is 1000 m away on +x, moving toward the origin at 10 m/s.\n    # Standard radar Doppler: 2 * vr / lam = 2 * 10 / 0.5 = 40 Hz.\n    p = (1000.0, 0.0, 0.0)\n    v = (-10.0, 0.0, 0.0)\n    tx = (0.0, 0.0, 0.0)\n    rx = (0.0, 0.0, 0.0)\n    lam = 0.5\n    assert bistatic_doppler(p, v, tx, rx, lam) == pytest.approx(40.0)\n\n\n\ndef test_monostatic_case_receding_negative_shift():\n    p = (1000.0, 0.0, 0.0)\n    v = (10.0, 0.0, 0.0)\n    tx = (0.0, 0.0, 0.0)\n    rx = (0.0, 0.0, 0.0)\n    lam = 0.5\n    assert bistatic_doppler(p, v, tx, rx, lam) == pytest.approx(-40.0)\n\n\n\ndef test_bistatic_same_direction_adds_single_path_contributions():\n    # Both transmitter and receiver lie to the left of the target.\n    # Moving left at 3 m/s shortens both legs, so each contributes +3/lam.\n    # Total = 6/2 = 3 Hz.\n    p = (0.0, 0.0, 0.0)\n    v = (-3.0, 0.0, 0.0)\n    tx = (-2.0, 0.0, 0.0)\n    rx = (-5.0, 0.0, 0.0)\n    lam = 2.0\n    assert bistatic_doppler(p, v, tx, rx, lam) == pytest.approx(3.0)\n\n\n\ndef test_bistatic_asymmetric_geometry_matches_vector_sum_formula():\n    # p at origin, tx on +x, rx on +y.\n    # Unit vector from p to tx = (1, 0, 0)\n    # Unit vector from p to rx = (0, 1, 0)\n    # With v = (4, 2, 0) and lam = 2, expected shift is\n    # ((1,0,0)+(0,1,0))\u00b7(4,2,0) / 2 = (4+2)/2 = 3 Hz.\n    p = (0.0, 0.0, 0.0)\n    v = (4.0, 2.0, 0.0)\n    tx = (1.0, 0.0, 0.0)\n    rx = (0.0, 1.0, 0.0)\n    lam = 2.0\n    assert bistatic_doppler(p, v, tx, rx, lam) == pytest.approx(3.0)\n"
+ },
+ "tokens_in": 180,
+ "tokens_out": 2432,
+ "usd": 0.011079,
+ "seconds": 11.1
+}

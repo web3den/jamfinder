@@ -1,0 +1,5 @@
+# The verification framework in qa/, on top of the package's own requirements.txt.
+hypothesis==6.170.17
+pymap3d==3.2.0
+coverage==7.17.5
+openai==3.59.0          # only for recording new model answers; replaying recorded ones needs no key and no network

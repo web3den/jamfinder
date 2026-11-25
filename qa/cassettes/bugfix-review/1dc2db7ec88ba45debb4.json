@@ -1,0 +1,56 @@
+{
+ "tag": "bugfix-review",
+ "role": "evaluator",
+ "model": "gpt-4.1-mini",
+ "effort": "low",
+ "sample": 1,
+ "system": "You are a skeptical code reviewer. Another engineer (an AI agent) claims to have fixed a bug. Your\ntask is to find evidence that the change is wrong, incomplete, hides the symptom instead of fixing the cause, or\ngames the tests. You cannot run code. Approve only if you find no such evidence.",
+ "user": "Ticket: condition (f) is computed from the weakest aircraft\n\nRule condition (f), 'the second-strongest per-aircraft support is at least 0.25 x the strongest', comes out False for support values [50, 40, 30, 2], although 40 is far above a quarter of 50. Condition (e) looks right. Expected: f is True for that input.\n\nThe change:\n--- a/jf/rules.py\n+++ b/jf/rules.py\n@@ -86,7 +86,7 @@\n     flips = [n for n in live if n.get(\"kind\") == \"flip\"]\n     null_best = max((null_score(n) for n in live), default=float(\"nan\"))\n     residual = float(\"nan\") if residual is None else float(residual)\n-    z = sorted((_z(s) for s in support), reverse=False)\n+    z = sorted((_z(s) for s in support), reverse=True)\n \n     a = len(live) > 0 and all(n[\"verdict\"] == \"nothing\" for n in live)\n     a_flip = len(flips) > 0 and all(n[\"verdict\"] == \"nothing\" for n in flips)\n\n\nThe regression test the engineer added:\nimport pytest\n\nfrom jf import rules\n\n\n@pytest.mark.parametrize(\n    \"support, expected\",\n    [\n        ([50, 40, 30, 2], True),\n        ([2, 30, 50, 40], True),\n        ([50, 12.5, 1], True),\n        ([50, 12.4, 1], False),\n        ([50], False),\n        ([], False),\n    ],\n)\ndef test_f_uses_two_strongest_aircraft(support, expected):\n    out = rules.evaluate([], [], None, support)\n    assert out[\"conditions\"][\"f\"] is expected\n\n\nAutomated checks: new test passes; existing suite passes.",
+ "schema": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "verdict",
+   "risk",
+   "concerns"
+  ],
+  "properties": {
+   "verdict": {
+    "type": "string",
+    "enum": [
+     "approve",
+     "request_changes"
+    ]
+   },
+   "risk": {
+    "type": "string",
+    "enum": [
+     "low",
+     "medium",
+     "high"
+    ]
+   },
+   "concerns": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   }
+  }
+ },
+ "output": {
+  "verdict": "request_changes",
+  "risk": "medium",
+  "concerns": [
+   "The patch changed sorting order of support values from ascending to descending, which superficially seems correct to identify the strongest and second-strongest values, but no inspection or explicit use of indexes or values after sorting is shown to confirm correctness of condition (f) calculation.",
+   "The provided diff and patch explanation do not show where or how condition (f) is actually evaluated from the sorted list `z`. Sorting descending only fixes order, but the actual condition logic is not visible, so it is unclear whether the condition is correctly implemented using the first two elements of `z`.",
+   "The engineer added regression tests that check condition (f) output for varied support inputs, but since only part of the function's internals is shown, the fix may only change sorting order and rely on existing code to compute condition (f), which might still be flawed or incomplete.",
+   "Tests rely on 'evaluate' function's output but do not inspect intermediate sorting or logic steps, so the fix might just mask deeper issues in condition (f) implementation rather than properly correcting the cause.",
+   "No reasoning or validation is provided regarding possible duplicate or equal support values, or edge cases involving empty or singleton lists beyond simple True/False expectations, so robustness of the fix is uncertain."
+  ]
+ },
+ "tokens_in": 543,
+ "tokens_out": 264,
+ "usd": 0.00064,
+ "seconds": 6.4
+}

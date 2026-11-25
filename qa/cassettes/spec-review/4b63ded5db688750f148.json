@@ -1,0 +1,104 @@
+{
+ "tag": "spec-review",
+ "role": "evaluator",
+ "model": "gpt-4.1-mini",
+ "effort": "low",
+ "sample": 0,
+ "system": "You check requirement coverage. Be strict: a requirement answers a question only if it settles it, not if it is merely related.",
+ "user": "Written requirements:\nREQ-GATE-001: Report a location only if the spectrum-flip control search reports nothing.\nREQ-GATE-002: Report only if the best score is at least NULL_RATIO times the largest non-degenerate control score, the blanking residual is below that control score, and the runner-up is below 0.75 times the best.\nREQ-GATE-003: A control search that kept less than half of the aircraft time is degenerate and takes no part in the decision.\nREQ-GATE-004: The verdict does not depend on the unit of the scores or on the order of the control searches.\nREQ-GATE-005: More evidence of false spots (a louder control search) never makes the rule more willing to report.\nREQ-GEO-001: WGS84 and unit constants equal their published definitions.\nREQ-GEO-002: Within 100 km of the receiver, converting to local coordinates and back is exact to 1 mm, and agrees with an independent geodesy library.\nREQ-GEO-003: Converting to local coordinates and back is exact everywhere on Earth, poles included.\nREQ-DOP-001: The predicted shift of an echo equals minus the rate of change of the path length transmitter-aircraft-receiver, divided by the wavelength.\nREQ-TRK-001: With max_gap = 30 s, a position feed reporting every 20 s gives a fully valid track.\nREQ-PIPE-001: The located spot does not depend on absolute time, receiver gain and phase, or the order of the aircraft, and moves by under 5 m for a receiver tuned 5 Hz off.\nREQ-PIPE-002: Turning or mirroring the whole scene turns or mirrors the located spot the same way; moving the transmitter moves it by as much.\nREQ-PIPE-003: A planted transmitter is found, and a scene without echoes gives 'nothing'.\nREQ-SAFE-001: The core library only reads data and never opens a network connection.\nREQ-SAFE-002: No key, token, IP address or e-mail address is ever committed or sent to a model.\nREQ-SAFE-003: The search code never reads the truth used to score it.\n\nQuestions:\n- What does \u201cstrong enough\u201d mean quantitatively, and what confidence threshold is required before reporting a location?\n- What form should the reported location take: a point estimate, an uncertainty region, or both?\n- How accurate must the reported location be to be considered correct?\n- What minimum evidence inputs are required, such as number of aircraft passes, number of echoes, or spatial/temporal diversity of reports?\n- How should the system handle conflicting, noisy, missing, or duplicate aircraft position reports?\n- What latency is acceptable between receiving evidence and issuing the location report?\n- Should the system produce one report and stop, or continue updating the location as more evidence arrives?\n- What are the boundaries of the operating conditions in which the requirement applies, such as aircraft speed/altitude, receiver coverage, terrain, or transmitter motion?\n\nFor every question, list the requirement IDs that answer it (empty if none) and a short note.",
+ "schema": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "answers"
+  ],
+  "properties": {
+   "answers": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "question",
+      "answered_by",
+      "note"
+     ],
+     "properties": {
+      "question": {
+       "type": "string"
+      },
+      "answered_by": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "note": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  }
+ },
+ "output": {
+  "answers": [
+   {
+    "question": "What does \u201cstrong enough\u201d mean quantitatively, and what confidence threshold is required before reporting a location?",
+    "answered_by": [
+     "REQ-GATE-002"
+    ],
+    "note": "REQ-GATE-002 quantitatively defines reporting conditions based on score ratios and thresholds, specifying minimum criteria for reporting (e.g., best score threshold, residual, and runner-up ratio)."
+   },
+   {
+    "question": "What form should the reported location take: a point estimate, an uncertainty region, or both?",
+    "answered_by": [],
+    "note": "No written requirement specifies the form or format of the reported location."
+   },
+   {
+    "question": "How accurate must the reported location be to be considered correct?",
+    "answered_by": [],
+    "note": "No requirement explicitly states accuracy thresholds or correctness criteria for the reported location."
+   },
+   {
+    "question": "What minimum evidence inputs are required, such as number of aircraft passes, number of echoes, or spatial/temporal diversity of reports?",
+    "answered_by": [
+     "REQ-GATE-003",
+     "REQ-TRK-001"
+    ],
+    "note": "REQ-GATE-003 defines a control search as degenerate if it uses less than half the aircraft time, and REQ-TRK-001 implies temporal requirements on position feeds for valid tracks, indirectly specifying minimal evidence inputs."
+   },
+   {
+    "question": "How should the system handle conflicting, noisy, missing, or duplicate aircraft position reports?",
+    "answered_by": [
+     "REQ-GATE-003"
+    ],
+    "note": "REQ-GATE-003 excludes degenerate control searches based on limited aircraft time, which relates to handling incomplete or noisy inputs by disregarding insufficient data."
+   },
+   {
+    "question": "What latency is acceptable between receiving evidence and issuing the location report?",
+    "answered_by": [],
+    "note": "No requirement addresses latency or timing constraints for issuing reports."
+   },
+   {
+    "question": "Should the system produce one report and stop, or continue updating the location as more evidence arrives?",
+    "answered_by": [],
+    "note": "No requirement covers report frequency, updating, or continuation behavior."
+   },
+   {
+    "question": "What are the boundaries of the operating conditions in which the requirement applies, such as aircraft speed/altitude, receiver coverage, terrain, or transmitter motion?",
+    "answered_by": [
+     "REQ-GEO-002",
+     "REQ-GEO-003",
+     "REQ-PIPE-001",
+     "REQ-PIPE-002"
+    ],
+    "note": "REQ-GEO-002 and REQ-GEO-003 specify coordinate conversion accuracy under geographic boundaries; REQ-PIPE-001 and REQ-PIPE-002 specify invariance and behavior under spatial transformations and receiver tuning, implicitly defining operational boundaries."
+   }
+  ]
+ },
+ "tokens_in": 737,
+ "tokens_out": 507,
+ "usd": 0.001106,
+ "seconds": 5.8
+}

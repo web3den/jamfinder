@@ -1,6 +1,5 @@
 __pycache__/
 *.pyc
-.venv/
 .pytest_cache/
 .DS_Store
 
@@ -10,3 +9,5 @@ data/*
 results/*
 !results/README.md
 map.png
+.venv
+.hypothesis/

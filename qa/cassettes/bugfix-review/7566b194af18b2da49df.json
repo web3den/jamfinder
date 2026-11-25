@@ -1,0 +1,50 @@
+{
+ "tag": "bugfix-review",
+ "role": "evaluator",
+ "model": "gpt-4.1-mini",
+ "effort": "low",
+ "sample": 1,
+ "system": "You are a skeptical code reviewer. Another engineer (an AI agent) claims to have fixed a bug. Your\ntask is to find evidence that the change is wrong, incomplete, hides the symptom instead of fixing the cause, or\ngames the tests. You cannot run code. Approve only if you find no such evidence.",
+ "user": "Ticket: a control keeping exactly half of the aircraft time is dropped\n\nA control search that kept exactly half of the aircraft time (frac = 0.5) is treated as degenerate and ignored by the rules. The documented definition says a control is degenerate only when it keeps LESS than half. Expected: frac = 0.5 counts as a real control.\n\nThe change:\n--- a/jf/rules.py\n+++ b/jf/rules.py\n@@ -49,7 +49,7 @@\n \n def is_degenerate(row, degenerate_frac=DEGENERATE_FRAC):\n     if row.get(\"frac\") is not None:\n-        return float(row[\"frac\"]) <= degenerate_frac\n+        return float(row[\"frac\"]) < degenerate_frac\n     return bool(row.get(\"degenerate\", False))\n \n \n\n\nThe regression test the engineer added:\nfrom jf import rules\n\n\ndef test_half_aircraft_time_is_a_real_control():\n    null = {\"kind\": \"flip\", \"best\": 10.0, \"verdict\": \"nothing\", \"frac\": 0.5}\n    assert not rules.is_degenerate(null)\n    assert rules.is_degenerate({**null, \"frac\": 0.49})\n\n    out = rules.evaluate([(30.0, 0, 0, 0)], [null], 5.0, [])\n    assert out[\"nulls_used\"] == 1\n    assert out[\"nulls_degenerate\"] == 0\n    assert out[\"null_best\"] == 10.0\n    assert all(out[\"conditions\"][key] for key in (\"a\", \"a_flip\", \"b\", \"c\", \"d\"))\n    assert out[\"v32\"] == \"one\"\n\n\ndef test_custom_degenerate_threshold_is_also_strict():\n    assert not rules.is_degenerate({\"frac\": 0.7}, degenerate_frac=0.7)\n    assert rules.is_degenerate({\"frac\": 0.69}, degenerate_frac=0.7)\n\n\nAutomated checks: new test passes; existing suite passes.",
+ "schema": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "verdict",
+   "risk",
+   "concerns"
+  ],
+  "properties": {
+   "verdict": {
+    "type": "string",
+    "enum": [
+     "approve",
+     "request_changes"
+    ]
+   },
+   "risk": {
+    "type": "string",
+    "enum": [
+     "low",
+     "medium",
+     "high"
+    ]
+   },
+   "concerns": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   }
+  }
+ },
+ "output": {
+  "verdict": "approve",
+  "risk": "low",
+  "concerns": []
+ },
+ "tokens_in": 564,
+ "tokens_out": 15,
+ "usd": 0.00025,
+ "seconds": 1.9
+}

@@ -1,0 +1,177 @@
+# What "correct" means for jamfinder, written down once, with an ID, a source and how it is verified.
+# `python -m qa.specs.trace` runs every linked test and check and writes qa/specs/TRACEABILITY.md.
+#
+#   method          test (run it), analysis (a static check of the code), inspection (a person reads it)
+#   implemented_by  "file:function" - used by the just-in-time tests to rate a change (qa/jit)
+#   verified_by     test ids, or "gate:<check>" for a check of qa/harness/gate.py
+#   status          accepted (the project's requirement) or proposed (raised by QA, waiting for the owner)
+
+# ---- the reporting rule (rule v3.2, jf/rules.py) ----------------------------------------------------------------
+
+[[requirement]]
+id = "REQ-GATE-001"
+text = "Report a location only if the spectrum-flip control search reports nothing."
+source = "jf/rules.py, condition (a')"
+method = "test"
+status = "accepted"
+implemented_by = ["jf/rules.py:evaluate"]
+verified_by = ["tests/test_rules.py::test_flip_null_not_nothing_vetoes_v31",
+               "tests/test_rules.py::test_missing_flip_null_blocks_v31_only",
+               "qa/properties/test_gate_properties.py::test_the_verdict_is_exactly_its_written_conditions"]
+
+[[requirement]]
+id = "REQ-GATE-002"
+text = "Report only if the best score is at least NULL_RATIO times the largest non-degenerate control score, the blanking residual is below that control score, and the runner-up is below 0.75 times the best."
+source = "jf/rules.py, conditions (b), (c), (d)"
+method = "test"
+status = "accepted"
+implemented_by = ["jf/rules.py:evaluate"]
+verified_by = ["tests/test_rules.py::test_b_c_d_boundaries",
+               "qa/properties/test_gate_properties.py::test_the_verdict_is_exactly_its_written_conditions",
+               "qa/mutation/generated/test_rules_killers.py"]
+
+[[requirement]]
+id = "REQ-GATE-003"
+text = "A control search that kept less than half of the aircraft time is degenerate and takes no part in the decision."
+source = "jf/rules.py, docstring"
+method = "test"
+status = "accepted"
+implemented_by = ["jf/rules.py:is_degenerate", "jf/rules.py:evaluate"]
+verified_by = ["tests/test_rules.py::test_degenerate_nulls_take_no_part",
+               "qa/properties/test_gate_properties.py::test_a_degenerate_control_has_no_say"]
+
+[[requirement]]
+id = "REQ-GATE-004"
+text = "The verdict does not depend on the unit of the scores or on the order of the control searches."
+source = "follows from REQ-GATE-001 and -002: every condition is a ratio or a label"
+method = "test"
+status = "accepted"
+implemented_by = ["jf/rules.py:evaluate"]
+verified_by = ["qa/properties/test_gate_properties.py::test_the_unit_of_the_scores_does_not_matter",
+               "qa/properties/test_gate_properties.py::test_the_order_of_the_control_searches_does_not_matter",
+               "qa/properties/test_gate_properties.py::test_a_stronger_best_spot_never_lowers_confidence"]
+
+[[requirement]]
+id = "REQ-GATE-005"
+text = "More evidence of false spots (a louder control search) never makes the rule more willing to report."
+source = "proposed by QA after FINDING-001 (qa/properties/README.md); the rule's owner decides"
+method = "test"
+status = "proposed"
+implemented_by = ["jf/rules.py:evaluate"]
+verified_by = ["qa/properties/test_gate_properties.py::test_more_evidence_against_never_raises_confidence"]
+
+# ---- geometry and physics -----------------------------------------------------------------------------------------
+
+[[requirement]]
+id = "REQ-GEO-001"
+text = "WGS84 and unit constants equal their published definitions."
+source = "WGS84 defining parameters; international foot (1959); knot = 1852 m per hour"
+method = "test"
+status = "accepted"
+implemented_by = ["jf/geo.py:<module>"]
+verified_by = ["qa/differential/test_reference_implementations.py::test_wgs84_and_unit_constants_match_their_definitions"]
+
+[[requirement]]
+id = "REQ-GEO-002"
+text = "Within 100 km of the receiver, converting to local coordinates and back is exact to 1 mm, and agrees with an independent geodesy library."
+source = "the search compares predicted and measured echoes at the metre level"
+method = "test"
+status = "accepted"
+implemented_by = ["jf/geo.py:Frame", "jf/geo.py:ecef"]
+verified_by = ["qa/properties/test_geometry_properties.py::test_enu_round_trip_near_the_frame",
+               "qa/differential/test_reference_implementations.py::test_local_east_north_up_agrees",
+               "qa/differential/test_reference_implementations.py::test_back_to_latitude_longitude_height_agrees"]
+
+[[requirement]]
+id = "REQ-GEO-003"
+text = "Converting to local coordinates and back is exact everywhere on Earth, poles included."
+source = "proposed by QA after FINDING-002; low priority, no receiver is near a pole"
+method = "test"
+status = "proposed"
+implemented_by = ["jf/geo.py:Frame"]
+verified_by = ["qa/properties/test_geometry_properties.py::test_enu_round_trip_everywhere_on_earth"]
+
+[[requirement]]
+id = "REQ-DOP-001"
+text = "The predicted shift of an echo equals minus the rate of change of the path length transmitter-aircraft-receiver, divided by the wavelength."
+source = "physics; docs/how_it_works.md"
+method = "test"
+status = "accepted"
+implemented_by = ["jf/tracks.py:doppler_pv"]
+verified_by = ["tests/test_geometry.py::test_doppler_equals_minus_range_rate_over_lambda",
+               "qa/differential/test_reference_implementations.py::test_doppler_agrees_with_the_path_length_derivative",
+               "qa/oracle/test_oracle.py::test_the_real_doppler_code_meets_the_independent_oracle",
+               "qa/properties/test_geometry_properties.py::test_transmitter_and_receiver_can_swap_places"]
+
+[[requirement]]
+id = "REQ-TRK-001"
+text = "With max_gap = 30 s, a position feed reporting every 20 s gives a fully valid track."
+source = "incident of 2026-11-15: 20-s feeds silently emptied the tracks"
+method = "test"
+status = "accepted"
+implemented_by = ["jf/tracks.py:Path"]
+verified_by = ["tests/test_track_gaps.py::test_twenty_second_feed_is_empty_at_the_default_gap_and_full_at_thirty"]
+
+# ---- the whole pipeline -------------------------------------------------------------------------------------------
+
+[[requirement]]
+id = "REQ-PIPE-001"
+text = "The located spot does not depend on absolute time, receiver gain and phase, or the order of the aircraft, and moves by under 5 m for a receiver tuned 5 Hz off."
+source = "nothing in the method refers to them"
+method = "test"
+status = "accepted"
+implemented_by = ["jf/field.py:search", "jf/scatter.py:waterfall", "jf/scatter.py:whiten"]
+verified_by = ["qa/metamorphic/test_metamorphic.py::test_the_same_scene_an_hour_later_gives_the_same_answer",
+               "qa/metamorphic/test_metamorphic.py::test_receiver_gain_and_phase_do_not_matter",
+               "qa/metamorphic/test_metamorphic.py::test_the_order_of_the_aircraft_does_not_matter",
+               "qa/metamorphic/test_metamorphic.py::test_a_receiver_tuned_5_hz_off_finds_the_same_spot"]
+
+[[requirement]]
+id = "REQ-PIPE-002"
+text = "Turning or mirroring the whole scene turns or mirrors the located spot the same way; moving the transmitter moves it by as much."
+source = "the physics has no preferred direction"
+method = "test"
+status = "accepted"
+implemented_by = ["jf/field.py:search"]
+verified_by = ["qa/metamorphic/test_metamorphic.py::test_a_turned_scene_gives_a_turned_answer",
+               "qa/metamorphic/test_metamorphic.py::test_a_mirrored_scene_gives_a_mirrored_answer",
+               "qa/metamorphic/test_metamorphic.py::test_moving_the_transmitter_moves_the_answer_by_as_much"]
+
+[[requirement]]
+id = "REQ-PIPE-003"
+text = "A planted transmitter is found, and a scene without echoes gives 'nothing'."
+source = "README, quick start"
+method = "test"
+status = "accepted"
+implemented_by = ["jf/field.py:search", "jf/field.py:verdict"]
+verified_by = ["tests/test_detection_sim.py::test_planted_transmitter_is_found",
+               "tests/test_detection_sim.py::test_no_echoes_means_nothing"]
+
+# ---- safety of the repository and of the AI tooling ---------------------------------------------------------------
+
+[[requirement]]
+id = "REQ-SAFE-001"
+text = "The core library only reads data and never opens a network connection."
+source = "receive-only design"
+method = "analysis"
+status = "accepted"
+implemented_by = ["jf"]
+verified_by = ["gate:architecture"]
+
+[[requirement]]
+id = "REQ-SAFE-002"
+text = "No key, token, IP address or e-mail address is ever committed or sent to a model."
+source = "public repository"
+method = "analysis"
+status = "accepted"
+implemented_by = ["qa/core/guard.py", "qa/core/llm.py"]
+verified_by = ["gate:secrets", "qa/harness/test_harness.py::test_a_prompt_with_a_key_is_never_sent"]
+
+[[requirement]]
+id = "REQ-SAFE-003"
+text = "The search code never reads the truth used to score it."
+source = "blind-test discipline"
+method = "test"
+status = "accepted"
+implemented_by = ["jf"]
+verified_by = ["tests/test_truth_isolation.py::test_search_package_never_references_truth"]

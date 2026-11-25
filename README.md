@@ -92,12 +92,22 @@ The step-by-step guide is [docs/usage.md](docs/usage.md).
 | `tools/` | Recorders, checks and the analysis runner |
 | `analysis/` | Analysis steps and plots |
 | `tests/` | Tests, on simulated data |
+| `qa/` | The verification framework: governance checks, mutation, property, metamorphic and differential tests, an AI bug-fixing loop with its evals, requirements traceability |
 | `data/`, `results/` | Your recordings and outputs. Empty in the repository. |
 | `docs/` | Documentation |
 
 ## Tests
 
-    .venv/bin/python -m pytest -q
+    .venv/bin/python -m pytest -q tests
+
+The verification framework in `qa/` goes further: mutation testing, property-based, metamorphic and differential
+tests, a governance gate for commits and coding agents, and evals of an AI bug-fixing loop. It has its own
+requirements and guide:
+
+    .venv/bin/pip install -r qa/requirements.txt
+    .venv/bin/python -m pytest -q tests qa
+
+See [qa/README.md](qa/README.md).
 
 ## Related work
 

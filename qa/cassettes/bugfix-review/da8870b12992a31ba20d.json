@@ -1,0 +1,50 @@
+{
+ "tag": "bugfix-review",
+ "role": "evaluator",
+ "model": "gpt-4.1-mini",
+ "effort": "low",
+ "sample": 1,
+ "system": "You are a skeptical code reviewer. Another engineer (an AI agent) claims to have fixed a bug. Your\ntask is to find evidence that the change is wrong, incomplete, hides the symptom instead of fixing the cause, or\ngames the tests. You cannot run code. Approve only if you find no such evidence.",
+ "user": "Ticket: a control keeping exactly half of the aircraft time is dropped\n\nA control search that kept exactly half of the aircraft time (frac = 0.5) is treated as degenerate and ignored by the rules. The documented definition says a control is degenerate only when it keeps LESS than half. Expected: frac = 0.5 counts as a real control.\n\nThe change:\n--- a/jf/rules.py\n+++ b/jf/rules.py\n@@ -49,7 +49,7 @@\n \n def is_degenerate(row, degenerate_frac=DEGENERATE_FRAC):\n     if row.get(\"frac\") is not None:\n-        return float(row[\"frac\"]) <= degenerate_frac\n+        return float(row[\"frac\"]) < degenerate_frac\n     return bool(row.get(\"degenerate\", False))\n \n \n\n\nThe regression test the engineer added:\n\"\"\"Regression test for frac == 0.5 being non-degenerate.\n\nThe rules documentation says a null is degenerate only when it keeps *less than* half of the\naircraft-seconds. So frac == 0.5 must still count as a real null.\n\"\"\"\n\nfrom jf import rules\n\n\ndef test_frac_half_is_not_degenerate_and_counts_in_rules():\n    cands = [(100.0, 0.0, 0.0, 0.0)]\n    nulls = [dict(kind=\"shift\", verdict=\"nothing\", best=20.0, frac=0.5)]\n\n    out = rules.evaluate(cands, nulls, residual=10.0, support=[50.0, 40.0, 30.0])\n\n    # frac == 0.5 must be treated as a live null, not a degenerate one.\n    assert out[\"nulls_used\"] == 1\n    assert out[\"nulls_degenerate\"] == 0\n    assert out[\"null_best\"] == 20.0\n    assert out[\"conditions\"][\"a\"] is True\n    assert out[\"conditions\"][\"b\"] is True\n    assert out[\"conditions\"][\"c\"] is True\n\n\nAutomated checks: new test passes; existing suite passes.",
+ "schema": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "verdict",
+   "risk",
+   "concerns"
+  ],
+  "properties": {
+   "verdict": {
+    "type": "string",
+    "enum": [
+     "approve",
+     "request_changes"
+    ]
+   },
+   "risk": {
+    "type": "string",
+    "enum": [
+     "low",
+     "medium",
+     "high"
+    ]
+   },
+   "concerns": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   }
+  }
+ },
+ "output": {
+  "verdict": "approve",
+  "risk": "low",
+  "concerns": []
+ },
+ "tokens_in": 578,
+ "tokens_out": 15,
+ "usd": 0.000255,
+ "seconds": 1.8
+}

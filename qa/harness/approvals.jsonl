@@ -1,0 +1,7 @@
+{"time": "2026-11-25T15:26:10Z", "file": "tests/test_rules.py", "by": "jamfinder authors", "reason": "baseline: requirements of the gate rule, the Doppler geometry and truth isolation", "sha256": "316033bbc435"}
+{"time": "2026-11-25T15:26:10Z", "file": "tests/test_geometry.py", "by": "jamfinder authors", "reason": "baseline: requirements of the gate rule, the Doppler geometry and truth isolation", "sha256": "6c7ab6929c61"}
+{"time": "2026-11-25T15:26:10Z", "file": "tests/test_truth_isolation.py", "by": "jamfinder authors", "reason": "baseline: requirements of the gate rule, the Doppler geometry and truth isolation", "sha256": "689d1a0f93cc"}
+{"time": "2026-11-25T15:53:43Z", "file": "qa/properties/test_gate_properties.py", "by": "jamfinder authors", "reason": "new: properties of the reporting rule, FINDING-001 as strict xfail", "sha256": "b990c49fe87e"}
+{"time": "2026-11-25T15:53:44Z", "file": "qa/metamorphic/test_metamorphic.py", "by": "jamfinder authors", "reason": "new: metamorphic relations of the whole pipeline", "sha256": "5dda6571597c"}
+{"time": "2026-11-25T15:57:22Z", "file": "qa/properties/test_gate_properties.py", "by": "jamfinder authors", "reason": "input generator moved to strategies.py (shared with qa/jit); legacy 'degenerate' flag rows added to the inputs", "sha256": "987b21089a26"}
+{"time": "2026-11-25T15:57:27Z", "file": "qa/properties/test_gate_properties.py", "by": "jamfinder authors", "reason": "blank line (style)", "sha256": "23375648210c"}

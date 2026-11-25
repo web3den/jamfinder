@@ -1,0 +1,53 @@
+# The rules of this repository, written once, enforced by qa/harness/gate.py (CI and the pre-commit hook)
+# and by qa/harness/claude_hook.py (before a coding agent's edit or command runs).
+# Instructions to an agent can be ignored. These cannot: a change that breaks one is rejected.
+
+# 1. Skipped and expected-to-fail tests. Every skip or xfail in the test code needs an entry here with a reason.
+#    Key: "file::test name". A new skip that is not listed fails the gate.
+[skips]
+"tests/test_levers_spec.py::test_pass_level_statistic_is_standardised_on_noise" = "known: weight='pass' misses its pure-noise bound by 0.35; kept strict so a fix is noticed"
+"qa/properties/test_gate_properties.py::test_more_evidence_against_never_raises_confidence" = "FINDING-001, see qa/properties/README.md; strict, so a fix of the rule is noticed"
+"qa/properties/test_geometry_properties.py::test_enu_round_trip_everywhere_on_earth" = "FINDING-002, see qa/properties/README.md; strict, so a fix of Frame.to_geo is noticed"
+
+# 2. Protected tests. These encode requirements. A coding agent may add tests, but changing one of these needs
+#    a recorded human approval: `python -m qa.harness.gate approve <file> --reason "..."`.
+[protected]
+files = [
+  "tests/test_rules.py",
+  "tests/test_geometry.py",
+  "tests/test_truth_isolation.py",
+  "qa/properties/test_gate_properties.py",
+  "qa/metamorphic/test_metamorphic.py",
+]
+
+# 3. Architecture. Who may import what.
+[[architecture]]
+rule = "the core library does not depend on scripts, demos, tests or this framework"
+files = "jf/*.py"
+forbid = ["tools", "analysis", "examples", "tests", "qa", "sim"]
+
+[[architecture]]
+rule = "the core library only reads data; it never opens a network connection"
+files = "jf/*.py"
+forbid = ["socket", "urllib", "http", "requests", "ssl", "ftplib", "smtplib", "websocket"]
+
+[[architecture]]
+rule = "the simulator builds on the core library only"
+files = "sim/*.py"
+forbid = ["tools", "analysis", "examples", "tests", "qa"]
+
+[[architecture]]
+rule = "one door to a language model: only qa/core/llm.py talks to a model"
+files = "**/*.py"
+forbid = ["openai", "anthropic"]
+except = ["qa/core/llm.py"]
+
+# 4. The test suite may not shrink silently (tests deleted or no longer collected).
+[test_count]
+minimum = 45
+
+# 5. What a coding agent may change, and when a human must look (human-on-the-loop; used by qa/bugfix_loop).
+[agent]
+may_edit = ["jf/"]                             # library code only: never tests, the harness, CI or this policy
+high_risk = ["jf/rules.py", "jf/field.py"]     # these decide whether to report a transmitter: always a human
+max_auto_lines = 20                            # a bigger change always gets a human

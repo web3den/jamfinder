@@ -1,0 +1,40 @@
+{
+ "tag": "bugfix",
+ "role": "generator",
+ "model": "gpt-5.4-mini",
+ "effort": "low",
+ "sample": 1,
+ "system": "You are a software engineer fixing one bug in jamfinder, a Python package that locates radio\ntransmitters from the echoes of their signal off aircraft. You work in steps. An automated harness checks the\noutput of every step; your own statements of success count for nothing. Fix the library code; never change\nexisting tests to make them pass.",
+ "user": "Ticket: condition (f) is computed from the weakest aircraft\n\nRule condition (f), 'the second-strongest per-aircraft support is at least 0.25 x the strongest', comes out False for support values [50, 40, 30, 2], although 40 is far above a quarter of 50. Condition (e) looks right. Expected: f is True for that input.\n\nThe package and its tests:\njf/__init__.py: jamfinder: aircraft as Doppler mirrors. Research code.\n    defines: \njf/blind.py: Search when the receiver cannot hear the transmitter itself.\n    defines: _evidence, _best_path, _scan, Blind, recentre, smooth_path, search\njf/field.py: Matched-field search that also works when no single line is visible.\n    defines: _phi, _sky_db, matched_power, Field, peaks, subcell, _aircraft_evidence, _clock_evidence, tune_clocks, clock_gains, search, verdict, support, mask_tracks\njf/geo.py: WGS84 helpers: geodetic <-> ECEF <-> local east/north/up.\n    defines: ecef, enu_matrix, Frame\njf/iq.py: Load spy_record captures and turn them into a clean carrier-referenced signal.\n    defines: load, sample_clock, find_carrier, to_baseband, reference, self_reference, spectrogram, remove_drift\njf/locate.py: Find the transmitter: try candidate positions, keep the one whose predicted\n    defines: Problem\njf/pipeline.py: The whole fix as two calls: blind grid search, then least squares on measured lines.\n    defines: blind_search, precise_fix, jackknife\njf/ridge.py: Pick the measured Doppler of each aircraft off the waterfall and solve for\n    defines: extract, Fit\njf/rules.py: The reporting rules v1, v2, v2.2, v3, v3.1 and v3.2 as one pure function.\n    defines: null_score, is_degenerate, _z, evaluate\njf/scatter.py: From a raw capture to a whitened Doppler waterfall, ready for track matching.\n    defines: baseband, waterfall, waterfall_blind, prepare, whiten, score_matrix\njf/tracks.py: Aircraft tracks from readsb-style JSON snapshots, and predicted Doppler.\n    defines: _num, _coarse, read_lines, load_snapshots, baro_offset, Path, doppler_pv, load_paths\ntests/test_detection_sim.py: End-to-end logic checks on synthetic scenes with exact truth (sim/synth.py).\n    defines: planted, test_planted_transmitter_is_found, test_support_names_the_aircraft_that_carry_the_evidence, test_no_echoes_means_nothing, test_blanking_the_found_spot_leaves_nothing\ntests/test_geometry.py: The geometry the whole method rests on, checked against finite differences.\n    defines: test_doppler_equals_minus_range_rate_over_lambda, test_doppler_gradient_formula, test_mirror_twin_gives_identical_doppler\ntests/test_levers_l1.py: The optional statistics of jf/field.py, weight=\"pass\" and weight=\"multi\": the logic, checked on synthetic inputs.\n    defines: test_matched_power_is_the_sim_synth_law, _scene, test_multi_is_the_stated_combination, test_pass_support_is_the_matched_z_and_clocks_work, test_pass_z_is_close_to_standard_normal_on_noise, test_new_search_options_run\ntests/test_levers_spec.py: Checks on the registry of statistics in jf/field.py.\n    defines: test_statistics_registry_lists_blocks_and_pass, test_pass_level_statistic_is_standardised_on_noise\ntests/test_noise_injection.py: Noise injection: add_noise_db must lower the carrier-to-noise ratio by exactly the requested amount, because\n    defines: test_added_noise_raises_the_floor_by_the_requested_db, test_noise_injection_is_reproducible_by_seed\ntests/test_null_statistics.py: What the search reports when there is nothing: the calibration every threshold rests on.\n    defines: test_whitened_noise_has_unit_mean_and_exponential_tail, test_field_score_is_standardised_on_pure_noise, test_phi_calibration_constants, test_block_and_pass_level_deflection_follow_theory, test_matched_weights_gain_follows_theory\ntests/test_rules.py: The edge cases of jf.rules follow the written definitions. Synthetic inputs only: no file is read.\n    defines: _check, _cands_from_scores, _null, test_degenerate_nulls_take_no_part, test_no_nulls_no_report_under_v3_and_v31_while_v2_falls_back_to_v1, test_time_shift_null_one_vetoes_v3_but_not_v31, test_flip_null_not_nothing_vetoes_v31, test_missing_flip_null_blocks_v31_only, test_b_c_d_boundaries, test_v2_upgrades_a_v1_nothing_v31_does_not, test_support_in_every_stored_form_gives_the_same_e_and_f, test_null_best_from_stored_candidates_or_best_field\ntests/test_spy_record.py: tools/spy_record.py must confirm the tune and be able to stop when it cannot.\n    defines: message, sync, FakeSpyServer, fake_server, record, test_honoured_tune_is_confirmed_and_recorded, test_ignored_tune_aborts_with_exit_2, test_tuned_but_silent_server_aborts_with_exit_3, test_without_require_tune_an_ignored_tune_only_warns_once, test_late_confirmation_inside_the_timeout_is_accepted, test_recording_that_ends_unconfirmed_is_not_a_success, test_option_words_may_stand_between_positional_arguments, test_bad_option_is_refused_before_connecting\ntests/test_track_gaps.py: Position feeds at 20-s cadence (OpenSky, adsb.fi far from a receiver) must not silently empty the tracks.\n    defines: _write_feed, _valid_fraction, test_twenty_second_feed_is_empty_at_the_default_gap_and_full_at_thirty, test_dense_feed_is_valid_at_the_default_gap, test_spline_between_twenty_second_reports_follows_straight_flight\ntests/test_truth_isolation.py: The search package must be truth-free: no path into data/ref, no unsealing, no truth coordinates.\n    defines: test_search_package_never_references_truth\n\nWhich files (at most 3) do you need to read to reproduce and fix this?",
+ "schema": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "files",
+   "why"
+  ],
+  "properties": {
+   "files": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "why": {
+    "type": "string"
+   }
+  }
+ },
+ "output": {
+  "files": [
+   "jf/rules.py",
+   "tests/test_rules.py",
+   "jf/field.py"
+  ],
+  "why": "The bug is in rule condition (f), so `jf/rules.py` is the primary file to inspect. `tests/test_rules.py` contains the exact expected behavior and edge cases for support/e/f calculations. `jf/field.py` may be needed because it provides the support values that feed into the rules and may reveal how aircraft ordering/aggregation is represented before `evaluate()` processes it."
+ },
+ "tokens_in": 1483,
+ "tokens_out": 162,
+ "usd": 0.001841,
+ "seconds": 3.4
+}

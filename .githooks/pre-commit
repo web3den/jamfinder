@@ -1,0 +1,6 @@
+#!/bin/sh
+# The governance gate on everything about to be committed: no keys, no unlisted skips, protected tests untouched,
+# import rules kept. Turn it on once per clone with:  git config core.hooksPath .githooks
+PY=.venv/bin/python
+[ -x "$PY" ] || PY=python3
+exec "$PY" -m qa.harness.gate --staged

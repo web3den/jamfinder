@@ -1,0 +1,62 @@
+{
+ "qa/metamorphic/test_metamorphic.py": {
+  "asserts": {
+   "base": 1,
+   "test_a_mirrored_scene_gives_a_mirrored_answer": 1,
+   "test_a_receiver_tuned_5_hz_off_finds_the_same_spot": 1,
+   "test_a_turned_scene_gives_a_turned_answer": 2,
+   "test_another_noise_draw_lands_close": 1,
+   "test_moving_the_transmitter_moves_the_answer_by_as_much": 1,
+   "test_receiver_gain_and_phase_do_not_matter": 1,
+   "test_the_order_of_the_aircraft_does_not_matter": 1,
+   "test_the_same_scene_an_hour_later_gives_the_same_answer": 1
+  },
+  "sha256": "5dda6571597c41eaa4445bbcbece0b4135517f662f4ea134eba91c7bcbc1f1cd"
+ },
+ "qa/properties/test_gate_properties.py": {
+  "asserts": {
+   "live": 0,
+   "test_a_degenerate_control_has_no_say": 1,
+   "test_a_stronger_best_spot_never_lowers_confidence": 1,
+   "test_more_evidence_against_never_raises_confidence": 1,
+   "test_the_order_of_the_control_searches_does_not_matter": 1,
+   "test_the_unit_of_the_scores_does_not_matter": 1,
+   "test_the_verdict_is_exactly_its_written_conditions": 2,
+   "v32": 0
+  },
+  "sha256": "23375648210c962bd4715deb00efd03f2419d876470238b9e0747896f3d4e35f"
+ },
+ "tests/test_geometry.py": {
+  "asserts": {
+   "f0": 0,
+   "rsum": 0,
+   "test_doppler_equals_minus_range_rate_over_lambda": 1,
+   "test_doppler_gradient_formula": 1,
+   "test_mirror_twin_gives_identical_doppler": 2
+  },
+  "sha256": "6c7ab6929c6112becf019bff7300c6d90e1dda400119dcd93b83a84a51b5cdf2"
+ },
+ "tests/test_rules.py": {
+  "asserts": {
+   "_cands_from_scores": 0,
+   "_check": 1,
+   "_null": 0,
+   "test_b_c_d_boundaries": 6,
+   "test_degenerate_nulls_take_no_part": 2,
+   "test_flip_null_not_nothing_vetoes_v31": 1,
+   "test_missing_flip_null_blocks_v31_only": 1,
+   "test_no_nulls_no_report_under_v3_and_v31_while_v2_falls_back_to_v1": 2,
+   "test_null_best_from_stored_candidates_or_best_field": 3,
+   "test_support_in_every_stored_form_gives_the_same_e_and_f": 3,
+   "test_time_shift_null_one_vetoes_v3_but_not_v31": 1,
+   "test_v2_upgrades_a_v1_nothing_v31_does_not": 2
+  },
+  "sha256": "316033bbc435b63898662cd876ef0f91bfba16340949118243bcb50dba93d234"
+ },
+ "tests/test_truth_isolation.py": {
+  "asserts": {
+   "test_search_package_never_references_truth": 1
+  },
+  "sha256": "689d1a0f93cc6bc689c2d151e3781276023b16fb6a54d34941af199a9fb5b10b"
+ }
+}

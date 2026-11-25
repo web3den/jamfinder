@@ -1,0 +1,28 @@
+{
+ "tag": "nversion",
+ "role": "generator",
+ "model": "gpt-5.4-mini",
+ "effort": "low",
+ "sample": 0,
+ "system": "You implement specifications exactly as written, in plain Python.",
+ "user": "The reporting rule v3.2. Inputs:\n  cands     the search's candidates, best first: a list of (score, east, north, dt); only the scores matter\n  nulls     control searches (\"nulls\"): dicts with \"kind\" (\"flip\" or \"shift\"), \"verdict\" (\"one\", \"ambiguous\" or\n            \"nothing\"), the best score as \"best\", and optionally \"frac\" (share of aircraft-seconds kept)\n  residual  the largest score left after blanking the best spot's predicted echo lines\nA null is degenerate when its shifted tracks keep less than half of the aircraft-seconds inside the recording\n(its row carries frac < 0.5). A row without frac counts as non-degenerate. Degenerate nulls take no part.\nConditions:\n  (a') the spectrum-flip null is \"nothing\" (no flip null -> false)\n  (b)  best >= 3 x the largest best score over the non-degenerate nulls\n  (c)  the residual < that largest null best\n  (d)  the runner-up < 0.75 x best\nWithout any non-degenerate null, (b) and (c) are false.\nv3.2 reports \"one\" if (a'), (b), (c) and (d) all hold, else \"nothing\".\n\nWrite a function rule_v32(cands, nulls, residual) that returns a dict with the keys a_flip, b, c, d (booleans) and v32 ('one' or 'nothing'). Standard library only.",
+ "schema": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "code"
+  ],
+  "properties": {
+   "code": {
+    "type": "string"
+   }
+  }
+ },
+ "output": {
+  "code": "def rule_v32(cands, nulls, residual):\n    \"\"\"Evaluate reporting rule v3.2.\n\n    Args:\n        cands: list of (score, east, north, dt), best first. Only score matters.\n        nulls: list of dicts with keys:\n            - kind: 'flip' or 'shift'\n            - verdict: 'one', 'ambiguous', or 'nothing'\n            - best: best score for that null\n            - optional frac: share of aircraft-seconds kept\n        residual: largest score left after blanking the best spot's predicted echo lines\n\n    Returns:\n        dict with booleans a_flip, b, c, d and v32 ('one' or 'nothing').\n    \"\"\"\n\n    # (a') spectrum-flip null is \"nothing\"; if no flip null exists, false.\n    flip_nulls = [n for n in nulls if n.get(\"kind\") == \"flip\"]\n    a_flip = any(n.get(\"verdict\") == \"nothing\" for n in flip_nulls) if flip_nulls else False\n\n    # Non-degenerate nulls: those without frac, or with frac >= 0.5\n    nondegenerate_nulls = [\n        n for n in nulls\n        if \"frac\" not in n or n.get(\"frac\") is None or n.get(\"frac\") >= 0.5\n    ]\n\n    if nondegenerate_nulls:\n        largest_null_best = max(n.get(\"best\", float(\"-inf\")) for n in nondegenerate_nulls)\n        b = cands[0][0] >= 3 * largest_null_best if cands else False\n        c = residual < largest_null_best\n    else:\n        # Without any non-degenerate null, (b) and (c) are false.\n        b = False\n        c = False\n\n    # (d) runner-up < 0.75 x best\n    if len(cands) >= 2:\n        best = cands[0][0]\n        runner_up = cands[1][0]\n        d = runner_up < 0.75 * best\n    else:\n        d = False\n\n    v32 = \"one\" if (a_flip and b and c and d) else \"nothing\"\n    return {\"a_flip\": a_flip, \"b\": b, \"c\": c, \"d\": d, \"v32\": v32}\n"
+ },
+ "tokens_in": 377,
+ "tokens_out": 603,
+ "usd": 0.002996,
+ "seconds": 5.6
+}

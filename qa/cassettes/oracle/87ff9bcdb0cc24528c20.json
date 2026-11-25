@@ -1,0 +1,28 @@
+{
+ "tag": "oracle",
+ "role": "generator",
+ "model": "gpt-5.4-mini",
+ "effort": "low",
+ "sample": 1,
+ "system": "You are a senior test engineer. You write pytest test modules. Reply with the module source only.",
+ "user": "Here is a function from our codebase:\n\nimport numpy as np\n\n\ndef bistatic_doppler(p, v, tx, rx, lam):\n    \"\"\"Doppler shift (Hz) of the echo off an aircraft at p (m) moving at v (m/s), transmitter tx, receiver rx.\"\"\"\n    p, v, tx, rx = (np.asarray(a, float) for a in (p, v, tx, rx))\n    u_rx = (p - rx) / np.linalg.norm(p - rx)      # unit vector receiver -> aircraft\n    u_tx = (p - tx) / np.linalg.norm(p - tx)      # unit vector transmitter -> aircraft\n    return -(np.dot(v, u_rx) - np.dot(v, u_tx)) / lam\n\nWrite a pytest test module for it, 5 to 8 tests with concrete expected values. Import it with: from subject_under_test import bistatic_doppler",
+ "schema": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "test_code"
+  ],
+  "properties": {
+   "test_code": {
+    "type": "string"
+   }
+  }
+ },
+ "output": {
+  "test_code": "import numpy as np\nimport pytest\n\nfrom subject_under_test import bistatic_doppler\n\n\ndef test_bistatic_doppler_simple_positive_along_x():\n    p = [1, 0, 0]\n    v = [1, 0, 0]\n    tx = [0, 0, 0]\n    rx = [2, 0, 0]\n    lam = 0.5\n    assert bistatic_doppler(p, v, tx, rx, lam) == pytest.approx(4.0)\n\n\ndef test_bistatic_doppler_simple_negative_along_x():\n    p = [1, 0, 0]\n    v = [-1, 0, 0]\n    tx = [0, 0, 0]\n    rx = [2, 0, 0]\n    lam = 0.5\n    assert bistatic_doppler(p, v, tx, rx, lam) == pytest.approx(-4.0)\n\n\ndef test_bistatic_doppler_zero_for_perpendicular_velocity():\n    p = [1, 0, 0]\n    v = [0, 3, 0]\n    tx = [0, 0, 0]\n    rx = [2, 0, 0]\n    lam = 0.5\n    assert bistatic_doppler(p, v, tx, rx, lam) == pytest.approx(0.0)\n\n\ndef test_bistatic_doppler_off_axis_geometry():\n    p = [1, 1, 0]\n    v = [0, 2, 0]\n    tx = [0, 0, 0]\n    rx = [0, 2, 0]\n    lam = 2.0\n    assert bistatic_doppler(p, v, tx, rx, lam) == pytest.approx(np.sqrt(2.0))\n\n\ndef test_bistatic_doppler_accepts_list_inputs_and_nonunit_lambda():\n    p = [3, 4, 0]\n    v = [3, 4, 0]\n    tx = [0, 4, 0]\n    rx = [0, 0, 0]\n    lam = 2.0\n    assert bistatic_doppler(p, v, tx, rx, lam) == pytest.approx(-1.0)\n\n\ndef test_bistatic_doppler_three_dimensional_case():\n    p = [2, 0, 2]\n    v = [1, 2, 2]\n    tx = [0, 0, 0]\n    rx = [4, 0, 0]\n    lam = 1.0\n    # u_rx = (-1/sqrt(2), 0, 1/sqrt(2)), u_tx = (1/sqrt(2), 0, 1/sqrt(2))\n    # dot(v, u_rx) = 1/sqrt(2), dot(v, u_tx) = 3/sqrt(2)\n    # result = -((1/sqrt(2)) - (3/sqrt(2))) = sqrt(2)\n    assert bistatic_doppler(p, v, tx, rx, lam) == pytest.approx(np.sqrt(2.0))\n"
+ },
+ "tokens_in": 247,
+ "tokens_out": 1378,
+ "usd": 0.006386,
+ "seconds": 9.7
+}

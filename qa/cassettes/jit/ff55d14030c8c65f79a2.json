@@ -1,0 +1,38 @@
+{
+ "tag": "jit",
+ "role": "generator",
+ "model": "gpt-5.4-mini",
+ "effort": "low",
+ "sample": 0,
+ "system": "You write one pytest test that catches a behaviour change between two versions of a function. The test\nmust pass on the OLD version and fail on the NEW one. It imports the module the normal way (e.g. `from jf import\nrules`), uses the given smallest input literally, and asserts the old output. Also say in one or two plain\nsentences what changed, and ask the change's author one yes/no question about whether it was intended.",
+ "user": "Module jf/rules.py, function is_degenerate.\n\nOLD:\ndef is_degenerate(row, degenerate_frac=DEGENERATE_FRAC):\n    if row.get(\"frac\") is not None:\n        return float(row[\"frac\"]) < degenerate_frac\n    return bool(row.get(\"degenerate\", False))\n\nNEW:\ndef is_degenerate(row, degenerate_frac=DEGENERATE_FRAC):\n    return float(row.get(\"frac\", 1.0)) < degenerate_frac\n\nSmallest input where they differ: {'kind': 'shift', 'best': 0.0, 'verdict': 'nothing', 'degenerate': True}\nOLD gives: ('returns', True)\nNEW gives: ('returns', False)\n\nName the test test_jit_is_degenerate_keeps_old_behaviour.",
+ "schema": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "what_changed",
+   "question",
+   "test_code"
+  ],
+  "properties": {
+   "what_changed": {
+    "type": "string"
+   },
+   "question": {
+    "type": "string"
+   },
+   "test_code": {
+    "type": "string"
+   }
+  }
+ },
+ "output": {
+  "what_changed": "`is_degenerate` used to fall back to the `degenerate` field when `frac` was missing; the new version ignores `degenerate` and treats missing `frac` as `1.0`, which changes this case from `True` to `False`.",
+  "question": "Was it intended to stop honoring `row['degenerate']` when `frac` is absent?",
+  "test_code": "from jf import rules\n\n\ndef test_jit_is_degenerate_keeps_old_behaviour():\n    row = {'kind': 'shift', 'best': 0.0, 'verdict': 'nothing', 'degenerate': True}\n    assert rules.is_degenerate(row) is True\n"
+ },
+ "tokens_in": 305,
+ "tokens_out": 260,
+ "usd": 0.001399,
+ "seconds": 3.6
+}
