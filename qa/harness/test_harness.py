@@ -51,6 +51,7 @@ def test_a_prompt_with_a_key_is_never_sent():
 def test_spending_stops_at_the_budget(monkeypatch):
     monkeypatch.setattr(llm, "spent", lambda: llm.BUDGET_USD + 0.01)
     monkeypatch.setenv("OPENAI_API_KEY", "placeholder-not-a-key")
+    monkeypatch.delenv("QA_LLM", raising=False)          # CI sets replay-only; this test needs the live path
     with pytest.raises(llm.BudgetExceeded):
         llm.ask("generator", system="x", user="a prompt with no recorded answer", tag="never-sent")
 

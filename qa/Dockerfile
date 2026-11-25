@@ -3,9 +3,9 @@
 #   docker run --rm --network none jamfinder-qa
 FROM python:3.12-slim
 WORKDIR /repo
-COPY requirements.txt qa/requirements.txt ./pins/
-RUN pip install --no-cache-dir -r pins/requirements.txt && \
-    pip install --no-cache-dir hypothesis==6.170.17 pymap3d==3.2.0 coverage==7.17.5
+COPY requirements.txt pins/package.txt
+COPY qa/requirements.txt pins/qa.txt
+RUN pip install --no-cache-dir -r pins/package.txt -r pins/qa.txt
 COPY . .
 RUN useradd --create-home tester && chown -R tester /repo
 USER tester
